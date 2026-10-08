@@ -11,8 +11,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
         // Segmentify Config
         // Change your appKey, dataCenterUrl and subDomain values with suitable one
-        SegmentifyManager.config(appkey: "5c571072-068e-40c5-8dbc-d8448158de19", dataCenterUrl: "https://gandalf-qa.segmentify.com", subDomain: "demo.segmentify.com")
-        SegmentifyManager.setPushConfig(dataCenterUrlPush: "https://gimli-qa.segmentify.com")
+        SegmentifyManager.setConfig(apiKey: nil, dataCenterUrl: "https://push-notification-api.preprod.cloud.unifonic.com", subDomain: "push-sfy-web.int.oci.ruh.dev.unifonic.com", authHeader: "Basic ZTc5NmJlNGUtNjExNi00Y2Y4LTgyYjgtNDIxMGEzNjNkMWJlOlhtU09WbjJhMjNVOGhjV0xDNVlraDd3S0ZYblBpZUhx")
+        SegmentifyManager.setPushConfig(dataCenterUrlPush: "https://push-notification-api.preprod.cloud.unifonic.com")
         let _ = SegmentifyManager.logStatus(isVisible: true)
         let _ = SegmentifyManager.setSessionKeepSecond(sessionKeepSecond: 604800)
 
@@ -51,9 +51,9 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         
         // Segmentify Event
         let obj = NotificationModel()
+        obj.instanceId = userInfo["instanceId"] as? String ?? userInfo["gcm.notification.instanceId"] as? String ?? ""
         obj.type = NotificationType.VIEW
         obj.providerType = ProviderType.FIREBASE
-        obj.instanceId = userInfo["instanceId"] as? String ?? ""
         SegmentifyManager.sharedManager().sendNotification(segmentifyObject: obj)
         completionHandler([.banner, .sound, .badge])
     }
@@ -61,33 +61,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        
-        let userInfo = response.notification.request.content.userInfo
-
-        if let deepLinkString = userInfo["deeplink"] as? String,
-           var components = URLComponents(string: deepLinkString) {
-            var queryItems = components.queryItems ?? []
-            let image = userInfo["image"] as? String
-            let newQueryItem = URLQueryItem(name: "image", value: image)
-            queryItems.append(newQueryItem)
-            components.queryItems = queryItems
-            if let finalUrl = components.url {
-                DispatchQueue.main.async {
-                    UIApplication.shared.open(finalUrl)
-                }
-            }
-        } else {
-            print("⚠️ 'deeplink' cannot be found")
-        }
-        
-        let obj = NotificationModel()
-        obj.deviceToken = ""
-        obj.type = NotificationType.CLICK
-        obj.providerType = ProviderType.FIREBASE
-        obj.instanceId = userInfo["instanceId"] as? String ?? ""
-        SegmentifyManager.sharedManager().sendNotification(segmentifyObject: obj)
-        
-        completionHandler()
+        SegmentifyManager.sharedManager().handlePushNotificationResponse(
+            response: response,
+            completion: completionHandler
+        )
     }
 }
 
