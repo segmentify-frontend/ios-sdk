@@ -78,7 +78,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         obj.type = NotificationType.CLICK
         obj.providerType = ProviderType.FIREBASE
         obj.instanceId = userInfo["instanceId"] as? String ?? ""
-        SegmentifyManager.sharedManager().sendNotification(segmentifyObject: obj)
+        SegmentifyManager.sharedManager().sendNotificationInteraction(segmentifyObject: obj)
         completionHandler()
     }
 }

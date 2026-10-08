@@ -12,7 +12,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Change your appKey, dataCenterUrl and subDomain values with suitable one
-        SegmentifyManager.config(appkey: "3c9e211a-d049-43d5-aa4a-f98b7e66e482", dataCenterUrl: "https://gandalf-qa.segmentify.com", subDomain: "demosfy.com")
+        SegmentifyManager.setConfig(apiKey: nil, dataCenterUrl: "https://push-notification-api.preprod.cloud.unifonic.com", subDomain: "demosfy.com", authHeader: "Basic ZTc5NmJlNGUtNjExNi00Y2Y4LTgyYjgtNDIxMGEzNjNkMWJlOlhtU09WbjJhMjNVOGhjV0xDNVlraDd3S0ZYblBpZUhx")
+        SegmentifyManager.setPushConfig(dataCenterUrlPush: "https://push-notification-api.preprod.cloud.unifonic.com")
         // option to show or hide console log
         let _ = SegmentifyManager.logStatus(isVisible: true)
         let _ = SegmentifyManager.setSessionKeepSecond(sessionKeepSecond: 604800)
@@ -147,19 +148,16 @@ extension AppDelegate : UNUserNotificationCenterDelegate {
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
                 
+        _ = SegmentifyManager.sharedManager().getTrackingParameters();
         let apns_instanceId = userInfo["instanceId"]
         let f_instanceId = userInfo["gcm.notification.instanceId"]
-        var instanceId_  = ""
-        
-        if(apns_instanceId != nil){
+        var instanceId_ = ""
+        if apns_instanceId != nil {
             instanceId_ = apns_instanceId as! String
-        }
-        else if(f_instanceId != nil){
+        } else if f_instanceId != nil {
             instanceId_ = f_instanceId as! String
         }
-   
 
-        _ = SegmentifyManager.sharedManager().getTrackingParameters();
         let obj = NotificationModel()
         obj.instanceId = instanceId_
         obj.type = NotificationType.CLICK
@@ -169,9 +167,11 @@ extension AppDelegate : UNUserNotificationCenterDelegate {
         // Print full message.
         print(userInfo)
         
-        if let deepLinkString = userInfo["deeplink"] as? String,
-           let url = URL(string: deepLinkString) {
-            UIApplication.shared.open(url)
+        // Handle deeplink if present
+        if let deeplink = userInfo["deeplink"] as? String, let url = URL(string: deeplink) {
+            DispatchQueue.main.async {
+                UIApplication.shared.open(url)
+            }
         }
 
         completionHandler()

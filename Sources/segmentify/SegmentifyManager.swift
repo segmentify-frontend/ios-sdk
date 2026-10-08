@@ -115,10 +115,11 @@ public class SegmentifyManager : NSObject {
         return sessionKeepSecond
     }
 
-    public class func setConfig(apiKey: String,dataCenterUrl : String, subDomain : String) {
+    public class func setConfig(apiKey: String?, dataCenterUrl : String, subDomain : String, authHeader: String? = nil) {
         SegmentifyManager.setup.apiKey = apiKey
         SegmentifyManager.setup.dataCenterUrl = dataCenterUrl
         SegmentifyManager.setup.subDomain = subDomain
+        SegmentifyManager.setup.authHeader = authHeader
         segmentifySharedInstance = SegmentifyManager.init()
     }
     
@@ -149,13 +150,20 @@ public class SegmentifyManager : NSObject {
     override init() {
         super.init()
         self.eventRequest = SegmentifyRegisterRequest()
-        
+
+        let authHeader = SegmentifyManager.setup.authHeader
+        eventRequest.authHeader = authHeader
         let appkey = SegmentifyManager.setup.apiKey
-        guard appkey != nil else {
-            print("Error - you must fill appKey before accessing SegmentifyManager.shared")
-            return
+        
+        if authHeader == nil {
+            guard appkey != nil else {
+                print("Error - you must fill appKey before accessing SegmentifyManager.shared")
+                return
+            }
+            eventRequest.apiKey = appkey!
+        } else {
+            eventRequest.apiKey = appkey
         }
-        eventRequest.apiKey = appkey!
         
         let subDomain = SegmentifyManager.setup.subDomain
         guard subDomain != nil else {
@@ -980,10 +988,21 @@ public class SegmentifyManager : NSObject {
         
         let encodedData = try? JSONEncoder().encode(segmentifyObject)
         let dataCenter  = SegmentifyManager.setup.dataCenterUrlPush
-        let url = URL(string: dataCenter! + "/native/subscription/push?apiKey=" + SegmentifyManager.setup.apiKey!)!
+        
+        var urlString = dataCenter! + "/native/subscription/push"
+        if let authHeader = SegmentifyManager.setup.authHeader {
+            // No apiKey in URL if authHeader is provided
+        } else {
+            urlString += "?apiKey=" + SegmentifyManager.setup.apiKey!
+        }
+        
+        let url = URL(string: urlString)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let authHeader = SegmentifyManager.setup.authHeader {
+            request.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = encodedData
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
@@ -1030,10 +1049,21 @@ public class SegmentifyManager : NSObject {
 
         let encodedData = try? JSONEncoder().encode(segmentifyObject)
         let dataCenter  = SegmentifyManager.setup.dataCenterUrlPush
-        let url = URL(string: dataCenter!  + "/native/interaction/notification?apiKey=" + SegmentifyManager.setup.apiKey!)!
+        
+        var urlString = dataCenter! + "/native/interaction/notification"
+        if let authHeader = SegmentifyManager.setup.authHeader {
+            // No apiKey in URL if authHeader is provided
+        } else {
+            urlString += "?apiKey=" + SegmentifyManager.setup.apiKey!
+        }
+        
+        let url = URL(string: urlString)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let authHeader = SegmentifyManager.setup.authHeader {
+            request.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = encodedData
 
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
@@ -2533,6 +2563,9 @@ public class SegmentifyManager : NSObject {
             requestURL = URL(string: dataCenterUrl + "/get/key?count=2")!
         }
         let urlRequest: NSMutableURLRequest = NSMutableURLRequest(url: requestURL)
+        if let authHeader = SegmentifyManager.setup.authHeader {
+            urlRequest.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        }
         let task = SegmentifyConnectionManager.urlSession.dataTask(with: urlRequest as URLRequest) {
             (data, response, error) -> Void in
             
@@ -2657,6 +2690,7 @@ extension SegmentifyManager: CdpSessionResolving, CdpRequestBuilding {
     func makeCdpRequest() -> SegmentifyRegisterRequest {
         let request = SegmentifyRegisterRequest()
         request.apiKey = eventRequest.apiKey
+        request.authHeader = eventRequest.authHeader
         request.dataCenterUrl = eventRequest.dataCenterUrl
         request.subdomain = eventRequest.subdomain
         request.sdkVersion = eventRequest.sdkVersion
