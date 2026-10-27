@@ -41,6 +41,8 @@ public class SegmentifyRegisterRequest : NSObject,SegmentifyRequestProtocol {
     var totalPrice:NSNumber?
     var inStock:Bool?
     var basketStep:String?
+    var wishlistStep:String?
+    var favoritesList:[String]?
     var basketID:String?
     var quantity:NSNumber?
     var orderNo:String?
@@ -165,6 +167,8 @@ public class SegmentifyRegisterRequest : NSObject,SegmentifyRequestProtocol {
         self.totalPrice = nil
         self.inStock = nil
         self.basketStep = nil
+        self.wishlistStep = nil
+        self.favoritesList = nil
         self.basketID = nil
         self.quantity = nil
         self.orderNo = nil
@@ -289,7 +293,7 @@ public class SegmentifyRegisterRequest : NSObject,SegmentifyRequestProtocol {
             dictionary["subCategory"] = subCategory as Any?
         }
 
-        if self.eventName == "PRODUCT_VIEW" || self.eventName == "BASKET_OPERATIONS" {
+        if self.eventName == "PRODUCT_VIEW" || self.eventName == "BASKET_OPERATIONS" || self.eventName == "WISHLIST" {
             dictionary["productId"] = productID as Any?
         } else {
             dictionary["productId"] = nil
@@ -427,6 +431,16 @@ public class SegmentifyRegisterRequest : NSObject,SegmentifyRequestProtocol {
         
         if self.eventName == "BASKET_OPERATIONS" && basketStep != nil{
             dictionary["step"] = self.basketStep
+        }
+
+        if self.eventName == "WISHLIST" && wishlistStep != nil {
+            dictionary["step"] = self.wishlistStep
+        }
+
+        if self.eventName == "WISHLIST" && favoritesList != nil {
+            dictionary["favoritesList"] = self.favoritesList
+        } else {
+            dictionary["favoritesList"] = nil
         }
 
         if self.eventName == "CHECKOUT" && basketStep != nil {
@@ -585,7 +599,7 @@ public class SegmentifyRegisterRequest : NSObject,SegmentifyRequestProtocol {
             }
         }
         
-        if self.eventName == "PRODUCT_VIEW" || self.eventName == "CHECKOUT" || self.eventName == "BASKET_OPERATIONS" {
+        if self.eventName == "PRODUCT_VIEW" || self.eventName == "CHECKOUT" || self.eventName == "BASKET_OPERATIONS" || self.eventName == "WISHLIST" {
             if self.activeBanners != nil{
                 dictionary["activeBanners"] = activeBanners as Any?
             } else {

@@ -40,6 +40,7 @@ public class SegmentifyManager : NSObject {
     static let userLogoutCdpEventName = "USER_LOGOUT"
     static let userSubscribeEventName = "USER_SUBSCRIBE"
     static let userUnsubscribeEventName = "USER_UNSUBSCRIBE"
+    static let wishlistEventName = "WISHLIST"
     
     static let customerInformationStep = "customer"
     static let viewBasketStep = "view-basket"
@@ -55,6 +56,10 @@ public class SegmentifyManager : NSObject {
     static let clickStep = "click"
     static let pushStep = "push"
     static let searchStep = "search"
+    static let wishlistAddStep = "add"
+    static let wishlistRemoveStep = "remove"
+    static let wishlistDetailStep = "detail"
+    static let wishlistViewFavoritesStep = "view-favorites"
     static let startIndex = 0
     
     private var params : Dictionary<AnyHashable, Any>?
@@ -1551,6 +1556,87 @@ public class SegmentifyManager : NSObject {
         }
         
         setIDAndSendEvent()
+    }
+
+    open func sendWishlist(segmentifyObject : WishlistModel) {
+        let step = segmentifyObject.step
+        let productSteps = [SegmentifyManager.wishlistAddStep, SegmentifyManager.wishlistRemoveStep, SegmentifyManager.wishlistDetailStep]
+        if step == SegmentifyManager.wishlistViewFavoritesStep {
+            guard segmentifyObject.favoritesList != nil else {
+                print("Error - you must fill favoritesList before accessing sendWishlist event method with step view-favorites")
+                return
+            }
+        } else {
+            guard let step = step, productSteps.contains(step) else {
+                print("Error - you must fill step with add, remove, detail or view-favorites before accessing sendWishlist event method")
+                return
+            }
+            guard let productId = segmentifyObject.productId, !productId.isEmpty else {
+                print("Error - you must fill productId before accessing sendWishlist event method with step \(step)")
+                return
+            }
+        }
+
+        eventRequest.eventName = SegmentifyManager.wishlistEventName
+        eventRequest.instanceId = nil
+        eventRequest.interactionId = nil
+        eventRequest.wishlistStep = step
+        eventRequest.productID = segmentifyObject.productId
+        eventRequest.favoritesList = segmentifyObject.favoritesList
+
+        if UserDefaults.standard.object(forKey: "UserSentUserId") != nil {
+            eventRequest.userID = UserDefaults.standard.object(forKey: "UserSentUserId") as? String
+        } else {
+            if UserDefaults.standard.object(forKey: "SEGMENTIFY_USER_ID") != nil {
+                self.eventRequest.userID = UserDefaults.standard.object(forKey: "SEGMENTIFY_USER_ID") as? String
+            }
+        }
+
+        if segmentifyObject.lang != nil {
+            eventRequest.lang = segmentifyObject.lang
+        }
+        if segmentifyObject.currency != nil {
+            eventRequest.currency = segmentifyObject.currency
+        }
+        if segmentifyObject.region != nil {
+            eventRequest.region = segmentifyObject.region
+        }
+        if self.clickedBanners.count > 0 {
+            var clickedBannerArray = [Any]()
+            self.clickedBanners.forEach {
+                clickedBanner in
+                clickedBannerArray.append(clickedBanner.nsDictionary)
+            }
+            eventRequest.activeBanners = clickedBannerArray
+        }
+
+        setIDAndSendEvent()
+    }
+
+    open func sendWishlistAdd(productId : String) {
+        sendWishlistProductStep(step: SegmentifyManager.wishlistAddStep, productId: productId)
+    }
+
+    open func sendWishlistRemove(productId : String) {
+        sendWishlistProductStep(step: SegmentifyManager.wishlistRemoveStep, productId: productId)
+    }
+
+    open func sendWishlistDetail(productId : String) {
+        sendWishlistProductStep(step: SegmentifyManager.wishlistDetailStep, productId: productId)
+    }
+
+    open func sendWishlistViewFavorites(favoritesList : [String]) {
+        let wishlistModel = WishlistModel()
+        wishlistModel.step = SegmentifyManager.wishlistViewFavoritesStep
+        wishlistModel.favoritesList = favoritesList
+        sendWishlist(segmentifyObject: wishlistModel)
+    }
+
+    private func sendWishlistProductStep(step : String, productId : String) {
+        let wishlistModel = WishlistModel()
+        wishlistModel.step = step
+        wishlistModel.productId = productId
+        sendWishlist(segmentifyObject: wishlistModel)
     }
     
     //Product View Event
