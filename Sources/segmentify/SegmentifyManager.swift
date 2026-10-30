@@ -982,7 +982,8 @@ public class SegmentifyManager : NSObject {
             print("Error - you must set dataCenterUrlPush in setConfig before accessing sendNotification event")
             return
         }
-        
+
+        segmentifyObject.sdkVersion = SegmentifyManager.registrationSdkVersion(for: segmentifyObject.type)
         let encodedData = try? JSONEncoder().encode(segmentifyObject)
         let dataCenter  = SegmentifyManager.setup.dataCenterUrlPush
         let url = URL(string: dataCenter! + "/native/subscription/push?apiKey=" + SegmentifyManager.setup.apiKey!)!
@@ -1048,6 +1049,40 @@ public class SegmentifyManager : NSObject {
             }
         }
         task.resume()
+    }
+
+    open func handlePushReceived(_ payload: SegmentifyPushPayload) {
+        sendPushInteraction(payload: payload, type: .VIEW)
+    }
+
+    open func handlePushClicked(_ payload: SegmentifyPushPayload) {
+        sendPushInteraction(payload: payload, type: .CLICK)
+    }
+
+    private func sendPushInteraction(payload: SegmentifyPushPayload, type: NotificationType) {
+        guard let model = SegmentifyManager.pushInteractionModel(payload: payload, type: type) else {
+            print("Error - push payload has no instanceId, push \(type.rawValue) event is not sent")
+            return
+        }
+        sendNotificationInteraction(segmentifyObject: model)
+    }
+
+    static func pushInteractionModel(payload: SegmentifyPushPayload, type: NotificationType) -> NotificationModel? {
+        guard let instanceId = payload.instanceId else {
+            return nil
+        }
+        let model = NotificationModel()
+        model.type = type
+        model.instanceId = instanceId
+        model.providerType = payload.providerType
+        return model
+    }
+
+    static func registrationSdkVersion(for type: NotificationType?) -> String? {
+        guard type == .PERMISSION_INFO else {
+            return nil
+        }
+        return SegmentifyManager.sdkVersion
     }
 
     open func getTrackingParameters()->UtmModel{
