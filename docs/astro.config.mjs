@@ -5,7 +5,7 @@ import starlightThemeBlack from 'starlight-theme-black';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://ios-docs.segmentify.com',
+  site: 'https://ios-sdk-docs.segmentify.com',
   integrations: [
     starlight({
       plugins: [
@@ -69,7 +69,7 @@ export default defineConfig({
           label: 'Related Documentation',
           items: [
             { label: 'API Docs', link: 'https://api-docs.segmentify.com/', attrs: { target: '_blank' } },
-            { label: 'Android SDK', link: 'https://android-docs.segmentify.com/', attrs: { target: '_blank' } },
+            { label: 'Android SDK', link: 'https://android-sdk-docs.segmentify.com/', attrs: { target: '_blank' } },
             { label: 'React Native SDK', link: 'https://rn-docs.segmentify.com/', attrs: { target: '_blank' } },
           ],
         },
