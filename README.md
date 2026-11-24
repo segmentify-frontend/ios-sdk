@@ -5,6 +5,10 @@ Segmentify  SDK for sending events and rendering recommendations for iOS based d
 
 > **Current Version 1.5.0**
 
+## Documentation
+
+The full documentation (installation, events, recommendations, search, push notifications and troubleshooting) is at [ios-docs.segmentify.com](https://ios-docs.segmentify.com/). Its source is in the [`docs/`](docs/) folder of this repository.
+
 ## Installation and Usage
 You can directly use Swift Package Manager to add and use Segmentify in your project. 
 To learn more about how to integrate Segmentify iOS SDK to your application, please check [Integration Guide](https://www.segmentify.com/dev/integration_ios/).
