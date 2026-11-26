@@ -1,4 +1,5 @@
 import XCTest
+import UserNotifications
 @testable import Segmentify
 
 final class PushClickInteractionTests: XCTestCase {
@@ -17,6 +18,7 @@ final class PushClickInteractionTests: XCTestCase {
         MockURLProtocol.requestHandler = nil
         SegmentifyTestSupport.resetTestNetworking()
         UserDefaults.standard.removeObject(forKey: "SEGMENTIFY_PUSH_CAMPAIGN_ID")
+        SegmentifyManager.pushTargetOpener = SegmentifyManager.openInApplication
         super.tearDown()
     }
 
@@ -122,6 +124,85 @@ final class PushClickInteractionTests: XCTestCase {
 
         wait(for: [nothingSent], timeout: 1)
         XCTAssertNil(UserDefaults.standard.string(forKey: "SEGMENTIFY_PUSH_CAMPAIGN_ID"))
+    }
+
+    func testActionTapSendsActionId() throws {
+        let model = try XCTUnwrap(SegmentifyManager.pushActionInteractionModel(payload: twoButtonPayload(), actionIdentifier: "action1"))
+
+        XCTAssertEqual(model.type, .CLICK)
+        XCTAssertEqual(model.instanceId, "psh_abc")
+        XCTAssertEqual(model.params, ["actionId": "action1"])
+    }
+
+    func testDefaultTapSendsClickWithoutActionId() throws {
+        let model = try XCTUnwrap(SegmentifyManager.pushActionInteractionModel(payload: twoButtonPayload(), actionIdentifier: UNNotificationDefaultActionIdentifier))
+
+        XCTAssertEqual(model.type, .CLICK)
+        XCTAssertTrue(model.params.isEmpty)
+    }
+
+    func testDismissSendsNothing() {
+        XCTAssertNil(SegmentifyManager.pushActionInteractionModel(payload: twoButtonPayload(), actionIdentifier: UNNotificationDismissActionIdentifier))
+    }
+
+    func testHandlePushClickedWithActionOpensItsTargetAndPostsTheClick() {
+        let legacyPosted = expectation(description: "button click posted to the interaction endpoint")
+        var opened: [URL] = []
+        SegmentifyManager.pushTargetOpener = { opened.append($0) }
+
+        MockURLProtocol.requestHandler = stubAllRequests(onLegacyNotification: {
+            legacyPosted.fulfill()
+        })
+
+        manager.handlePushClicked(twoButtonPayload(), actionIdentifier: "action0")
+
+        wait(for: [legacyPosted], timeout: 3)
+        XCTAssertEqual(opened, [URL(string: "app://view")!])
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "SEGMENTIFY_PUSH_CAMPAIGN_ID"), "psh_abc")
+    }
+
+    func testHandlePushClickedWithDefaultTapOpensNothing() {
+        let legacyPosted = expectation(description: "body click posted to the interaction endpoint")
+        var opened: [URL] = []
+        SegmentifyManager.pushTargetOpener = { opened.append($0) }
+
+        MockURLProtocol.requestHandler = stubAllRequests(onLegacyNotification: {
+            legacyPosted.fulfill()
+        })
+
+        manager.handlePushClicked(twoButtonPayload(), actionIdentifier: UNNotificationDefaultActionIdentifier)
+
+        wait(for: [legacyPosted], timeout: 3)
+        XCTAssertTrue(opened.isEmpty)
+    }
+
+    func testActionTargetIsTheDeeplinkThenTheTrackedUrlThenTheRedirectUrl() {
+        let payload = twoButtonPayload()
+
+        XCTAssertEqual(payload.actionTargetUrl(for: "action0"), "app://view")
+        XCTAssertEqual(payload.actionTargetUrl(for: "action1"), "https://shop.example.com/shop?_sgm_campaign=psh_abc")
+
+        let untracked = SegmentifyPushPayload(userInfo: ["instanceId": "psh_abc", "actions": twoButtonActions])
+        XCTAssertEqual(untracked.actionTargetUrl(for: "action1"), "https://shop.example.com/shop")
+    }
+
+    func testDefaultTapAndUnknownButtonsHaveNoActionTarget() {
+        let payload = twoButtonPayload()
+
+        XCTAssertNil(payload.actionTargetUrl(for: UNNotificationDefaultActionIdentifier))
+        XCTAssertNil(payload.actionTargetUrl(for: "action2"))
+    }
+
+    private let twoButtonActions = "[{\"action\":\"view\",\"title\":\"View\",\"redirectUrl\":\"https://shop.example.com/view\",\"deeplink\":\"app://view\"},"
+        + "{\"action\":\"shop\",\"title\":\"Shop Now\",\"redirectUrl\":\"https://shop.example.com/shop\"}]"
+
+    private func twoButtonPayload() -> SegmentifyPushPayload {
+        SegmentifyPushPayload(userInfo: [
+            "instanceId": "psh_abc",
+            "sgmVersion": "2",
+            "actions": twoButtonActions,
+            "actionUrls": "[\"https://shop.example.com/view?_sgm_campaign=psh_abc\",\"https://shop.example.com/shop?_sgm_campaign=psh_abc\"]"
+        ])
     }
 
     private func makeClick(instanceId: String, interactionId: String?) -> NotificationModel {
