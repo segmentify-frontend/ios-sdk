@@ -6,7 +6,31 @@ final class PushActionCategoryTests: XCTestCase {
 
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: PushActionCategories.registeredKey)
+        SegmentifyManager.notificationCategoriesSetter = SegmentifyManager.setInNotificationCenter
         super.tearDown()
+    }
+
+    func testRegisteringSetsTheAppAndSegmentifyCategoriesInOneCall() {
+        var calls: [Set<UNNotificationCategory>] = []
+        SegmentifyManager.notificationCategoriesSetter = { calls.append($0) }
+        let appCategory = UNNotificationCategory(identifier: "app_category", actions: [], intentIdentifiers: [], options: [])
+
+        SegmentifyManager.setPushActionCategories(with: [appCategory])
+
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(Set(calls.first?.map(\.identifier) ?? []), ["app_category", "segmentify_1", "segmentify_2"])
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: PushActionCategories.registeredKey))
+    }
+
+    func testHostCanTakeTheSegmentifyCategoriesForItsOwnCall() {
+        var calls: [Set<UNNotificationCategory>] = []
+        SegmentifyManager.notificationCategoriesSetter = { calls.append($0) }
+
+        let categories = SegmentifyManager.takePushActionCategories()
+
+        XCTAssertEqual(Set(categories.map(\.identifier)), ["segmentify_1", "segmentify_2"])
+        XCTAssertTrue(calls.isEmpty)
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: PushActionCategories.registeredKey))
     }
 
     func testRegistersBothCategoriesAndKeepsExisting() {
