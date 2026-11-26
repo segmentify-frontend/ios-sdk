@@ -11,13 +11,28 @@ import UIKit
 extension SegmentifyManager {
 
     static var pushTargetOpener: (URL) -> Void = SegmentifyManager.openInApplication
+    static var notificationCategoriesSetter: (Set<UNNotificationCategory>) -> Void = SegmentifyManager.setInNotificationCenter
 
-    public func registerPushActionCategories() {
-        let center = UNUserNotificationCenter.current()
-        center.getNotificationCategories { existing in
-            center.setNotificationCategories(PushActionCategories.merged(with: existing))
-            UserDefaults.standard.set(true, forKey: PushActionCategories.registeredKey)
-        }
+    public func registerPushActionCategories(with appCategories: Set<UNNotificationCategory> = []) {
+        SegmentifyManager.setPushActionCategories(with: appCategories)
+    }
+
+    public func pushActionCategories() -> Set<UNNotificationCategory> {
+        SegmentifyManager.takePushActionCategories()
+    }
+
+    static func setPushActionCategories(with appCategories: Set<UNNotificationCategory>) {
+        notificationCategoriesSetter(PushActionCategories.merged(with: appCategories))
+        UserDefaults.standard.set(true, forKey: PushActionCategories.registeredKey)
+    }
+
+    static func takePushActionCategories() -> Set<UNNotificationCategory> {
+        UserDefaults.standard.set(true, forKey: PushActionCategories.registeredKey)
+        return PushActionCategories.merged(with: [])
+    }
+
+    static func setInNotificationCenter(_ categories: Set<UNNotificationCategory>) {
+        UNUserNotificationCenter.current().setNotificationCategories(categories)
     }
 
     public func handlePushClicked(_ payload: SegmentifyPushPayload, actionIdentifier: String) {
