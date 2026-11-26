@@ -16,6 +16,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
         UNUserNotificationCenter.current().delegate = self
+        SegmentifyManager.sharedManager().registerPushActionCategories()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             if let error = error {
                 print("Notification authorization error: \(error)")
@@ -78,7 +79,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         print("Notification tapped (APNs), userInfo: \(userInfo)")
 
         let payload = SegmentifyPushPayload(userInfo: userInfo)
-        SegmentifyManager.sharedManager().handlePushClicked(payload)
+        SegmentifyManager.sharedManager().handlePushClicked(payload, actionIdentifier: response.actionIdentifier)
 
         completionHandler()
     }
