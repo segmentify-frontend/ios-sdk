@@ -70,6 +70,16 @@ final class PushActionCategoryTests: XCTestCase {
         XCTAssertEqual(PushActionCategories.titles(localization: "de"), ["View", "Shop Now"])
     }
 
+    func testRegisteredButtonTitlesFollowThePhoneLanguage() {
+        XCTAssertEqual(buttonTitles(preferredLanguages: ["tr-TR", "en-US"]), ["Görüntüle", "Alışverişe Başla"])
+        XCTAssertEqual(buttonTitles(preferredLanguages: ["ar-SA"]), ["عرض", "تسوق الآن"])
+        XCTAssertEqual(buttonTitles(preferredLanguages: ["en-GB", "tr-TR"]), ["View", "Shop Now"])
+    }
+
+    func testRegisteredButtonTitlesAreEnglishForOtherPhoneLanguages() {
+        XCTAssertEqual(buttonTitles(preferredLanguages: ["de-DE", "fr-FR"]), ["View", "Shop Now"])
+    }
+
     func testRegistrationSendsSupportsActionsOnceTheCategoriesAreRegistered() throws {
         UserDefaults.standard.set(true, forKey: PushActionCategories.registeredKey)
 
@@ -89,6 +99,11 @@ final class PushActionCategoryTests: XCTestCase {
 
         XCTAssertNil(SegmentifyManager.registrationSupportsActions(for: .VIEW))
         XCTAssertNil(SegmentifyManager.registrationSupportsActions(for: .CLICK))
+    }
+
+    private func buttonTitles(preferredLanguages: [String]) -> [String] {
+        let categories = PushActionCategories.merged(with: [], preferredLanguages: preferredLanguages)
+        return categories.first { $0.identifier == "segmentify_2" }?.actions.map(\.title) ?? []
     }
 
     private func actionIdentifiers(of category: String, in categories: Set<UNNotificationCategory>) -> [String] {

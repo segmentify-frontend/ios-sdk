@@ -148,9 +148,11 @@ final class PushClickInteractionTests: XCTestCase {
     func testHandlePushClickedWithActionOpensItsTargetAndPostsTheClick() {
         let legacyPosted = expectation(description: "button click posted to the interaction endpoint")
         var opened: [URL] = []
+        var postedBody: [String: Any]?
         SegmentifyManager.pushTargetOpener = { opened.append($0) }
 
-        MockURLProtocol.requestHandler = stubAllRequests(onLegacyNotification: {
+        MockURLProtocol.requestHandler = stubAllRequests(onLegacyNotificationRequest: { request in
+            postedBody = self.jsonBody(of: request)
             legacyPosted.fulfill()
         })
 
@@ -159,6 +161,26 @@ final class PushClickInteractionTests: XCTestCase {
         wait(for: [legacyPosted], timeout: 3)
         XCTAssertEqual(opened, [URL(string: "app://view")!])
         XCTAssertEqual(UserDefaults.standard.string(forKey: "SEGMENTIFY_PUSH_CAMPAIGN_ID"), "psh_abc")
+        XCTAssertEqual(postedBody?["type"] as? String, "CLICK")
+        XCTAssertEqual(postedBody?["instanceId"] as? String, "psh_abc")
+        XCTAssertEqual(postedBody?["params"] as? [String: String], ["actionId": "action0"])
+    }
+
+    func testBodyTapGoesThroughTheOverridableHandlePushClicked() {
+        let recording = RecordingPushManager()
+
+        recording.handlePushClicked(twoButtonPayload(), actionIdentifier: UNNotificationDefaultActionIdentifier)
+
+        XCTAssertEqual(recording.bodyTaps, 1)
+    }
+
+    func testButtonTapDoesNotGoThroughTheBodyTapHandler() {
+        let recording = RecordingPushManager()
+        SegmentifyManager.pushTargetOpener = { _ in }
+
+        recording.handlePushClicked(twoButtonPayload(), actionIdentifier: "action1")
+
+        XCTAssertEqual(recording.bodyTaps, 0)
     }
 
     func testHandlePushClickedWithDefaultTapOpensNothing() {
@@ -184,6 +206,19 @@ final class PushClickInteractionTests: XCTestCase {
 
         let untracked = SegmentifyPushPayload(userInfo: ["instanceId": "psh_abc", "actions": twoButtonActions])
         XCTAssertEqual(untracked.actionTargetUrl(for: "action1"), "https://shop.example.com/shop")
+    }
+
+    func testActionKeepsItsOwnTrackedUrlWhenAnEarlierItemIsDropped() {
+        let payload = SegmentifyPushPayload(userInfo: [
+            "instanceId": "psh_abc",
+            "actions": "[{\"title\":\"No action key\",\"redirectUrl\":\"https://shop.example.com/broken\"},"
+                + "{\"action\":\"shop\",\"title\":\"Shop Now\",\"redirectUrl\":\"https://shop.example.com/shop\"}]",
+            "actionUrls": "[\"https://shop.example.com/broken?_sgm_campaign=psh_abc\",\"https://shop.example.com/shop?_sgm_campaign=psh_abc\"]"
+        ])
+
+        XCTAssertEqual(payload.actions.map(\.action), ["shop"])
+        XCTAssertEqual(payload.actionUrls, ["https://shop.example.com/shop?_sgm_campaign=psh_abc"])
+        XCTAssertEqual(payload.actionTargetUrl(for: "action0"), "https://shop.example.com/shop?_sgm_campaign=psh_abc")
     }
 
     func testDefaultTapAndUnknownButtonsHaveNoActionTarget() {
@@ -215,7 +250,8 @@ final class PushClickInteractionTests: XCTestCase {
 
     private func stubAllRequests(
         onInteraction: @escaping () -> Void = {},
-        onLegacyNotification: @escaping () -> Void = {}
+        onLegacyNotification: @escaping () -> Void = {},
+        onLegacyNotificationRequest: @escaping (URLRequest) -> Void = { _ in }
     ) -> (URLRequest) throws -> (HTTPURLResponse, Data) {
         { request in
             let path = request.url?.absoluteString ?? ""
@@ -224,10 +260,34 @@ final class PushClickInteractionTests: XCTestCase {
             }
             if path.contains("/native/interaction/notification") {
                 onLegacyNotification()
+                onLegacyNotificationRequest(request)
             }
             let response = SegmentifyTestSupport.httpResponse(for: request)
             let data = try SegmentifyTestSupport.emptyEventResponse()
             return (response, data)
         }
+    }
+
+    private func jsonBody(of request: URLRequest) -> [String: Any]? {
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let stream = request.httpBodyStream {
+            stream.open()
+            defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 1024)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                guard count > 0 else { break }
+                data.append(buffer, count: count)
+            }
+        }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+}
+
+private final class RecordingPushManager: SegmentifyManager {
+    var bodyTaps = 0
+
+    override func handlePushClicked(_ payload: SegmentifyPushPayload) {
+        bodyTaps += 1
     }
 }
