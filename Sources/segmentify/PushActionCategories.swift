@@ -14,8 +14,11 @@ enum PushActionCategories {
     private static let defaultLocalization = "en"
     private static let titleKeys = ["segmentify_push_action_view", "segmentify_push_action_shop_now"]
 
-    static func merged(with existing: Set<UNNotificationCategory>) -> Set<UNNotificationCategory> {
-        let own = categories(titles: titles(in: SDKVersion.resourceBundle))
+    static func merged(
+        with existing: Set<UNNotificationCategory>,
+        preferredLanguages: [String] = Locale.preferredLanguages
+    ) -> Set<UNNotificationCategory> {
+        let own = categories(titles: titles(localization: localization(for: preferredLanguages)))
         let ownIdentifiers = Set(own.map(\.identifier))
         return existing.filter { !ownIdentifiers.contains($0.identifier) }.union(own)
     }
@@ -50,6 +53,13 @@ enum PushActionCategories {
 
     private static func titles(in bundle: Bundle) -> [String] {
         titleKeys.map { bundle.localizedString(forKey: $0, value: nil, table: nil) }
+    }
+
+    private static func localization(for preferredLanguages: [String]) -> String {
+        Bundle.preferredLocalizations(
+            from: SDKVersion.resourceBundle.localizations,
+            forPreferences: preferredLanguages + [defaultLocalization]
+        ).first ?? defaultLocalization
     }
 
     private static func localizedBundle(_ localization: String) -> Bundle? {

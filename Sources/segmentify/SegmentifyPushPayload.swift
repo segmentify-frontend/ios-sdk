@@ -67,8 +67,12 @@ public struct SegmentifyPushPayload: Equatable {
         apiKey = SegmentifyPushPayload.string(userInfo["apiKey"])
         dataCenterUrl = SegmentifyPushPayload.string(userInfo["dataCenterUrl"])
         userId = SegmentifyPushPayload.string(userInfo["userId"])
-        actions = SegmentifyPushPayload.actions(from: userInfo["actions"])
-        actionUrls = SegmentifyPushPayload.list(from: userInfo["actionUrls"]).map { SegmentifyPushPayload.string($0) ?? "" }
+        let urls = SegmentifyPushPayload.list(from: userInfo["actionUrls"]).map { SegmentifyPushPayload.string($0) ?? "" }
+        let parsedActions = SegmentifyPushPayload.list(from: userInfo["actions"]).enumerated().compactMap { index, item in
+            SegmentifyPushPayload.action(from: item).map { ($0, urls.indices.contains(index) ? urls[index] : "") }
+        }
+        actions = parsedActions.map { $0.0 }
+        actionUrls = parsedActions.map { $0.1 }
         providerType = userInfo["gcm.message_id"] != nil ? .FIREBASE : .APNS
     }
 
@@ -110,18 +114,16 @@ public struct SegmentifyPushPayload: Equatable {
         return items as? [Any] ?? []
     }
 
-    private static func actions(from value: Any?) -> [SegmentifyPushAction] {
-        return list(from: value).compactMap { item in
-            guard let item = item as? [String: Any], let action = string(item["action"]) else {
-                return nil
-            }
-            return SegmentifyPushAction(
-                action: action,
-                title: string(item["title"]) ?? "",
-                icon: string(item["icon"]),
-                redirectUrl: string(item["redirectUrl"]),
-                deeplink: string(item["deeplink"])
-            )
+    private static func action(from value: Any) -> SegmentifyPushAction? {
+        guard let item = value as? [String: Any], let action = string(item["action"]) else {
+            return nil
         }
+        return SegmentifyPushAction(
+            action: action,
+            title: string(item["title"]) ?? "",
+            icon: string(item["icon"]),
+            redirectUrl: string(item["redirectUrl"]),
+            deeplink: string(item["deeplink"])
+        )
     }
 }

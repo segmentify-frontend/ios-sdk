@@ -17,7 +17,7 @@ extension SegmentifyManager {
         SegmentifyManager.setPushActionCategories(with: appCategories)
     }
 
-    public func pushActionCategories() -> Set<UNNotificationCategory> {
+    public func adoptPushActionCategories() -> Set<UNNotificationCategory> {
         SegmentifyManager.takePushActionCategories()
     }
 
@@ -37,6 +37,10 @@ extension SegmentifyManager {
 
     public func handlePushClicked(_ payload: SegmentifyPushPayload, actionIdentifier: String) {
         guard actionIdentifier != UNNotificationDismissActionIdentifier else {
+            return
+        }
+        guard PushActionCategories.actionIndex(for: actionIdentifier) != nil else {
+            handlePushClicked(payload)
             return
         }
         if let target = payload.actionTargetUrl(for: actionIdentifier) {
