@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         FirebaseApp.configure()
         
         UNUserNotificationCenter.current().delegate = self
+        SegmentifyManager.sharedManager().registerPushActionCategories()
         Messaging.messaging().delegate = self
         
         application.registerForRemoteNotifications()
@@ -60,7 +61,9 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         
         let payload = SegmentifyPushPayload(userInfo: response.notification.request.content.userInfo)
 
-        if let deepLinkString = payload.targetUrl,
+        let isBodyTap = response.actionIdentifier == UNNotificationDefaultActionIdentifier
+
+        if isBodyTap, let deepLinkString = payload.targetUrl,
            var components = URLComponents(string: deepLinkString) {
             var queryItems = components.queryItems ?? []
             let image = payload.image
@@ -72,11 +75,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                     UIApplication.shared.open(finalUrl)
                 }
             }
-        } else {
+        } else if isBodyTap {
             print("⚠️ neither 'deeplink' nor 'redirectUrl' can be found")
         }
         
-        SegmentifyManager.sharedManager().handlePushClicked(payload)
+        SegmentifyManager.sharedManager().handlePushClicked(payload, actionIdentifier: response.actionIdentifier)
         
         completionHandler()
     }

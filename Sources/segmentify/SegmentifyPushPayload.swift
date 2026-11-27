@@ -33,6 +33,7 @@ public struct SegmentifyPushPayload: Equatable {
     public internal(set) var dataCenterUrl: String?
     public internal(set) var userId: String?
     public internal(set) var actions: [SegmentifyPushAction]
+    public internal(set) var actionUrls: [String]
     public internal(set) var providerType: ProviderType
 
     public var isV2: Bool {
@@ -41,6 +42,15 @@ public struct SegmentifyPushPayload: Equatable {
 
     public var targetUrl: String? {
         return deeplink ?? redirectUrl
+    }
+
+    public func actionTargetUrl(for actionIdentifier: String) -> String? {
+        guard let index = PushActionCategories.actionIndex(for: actionIdentifier), actions.indices.contains(index) else {
+            return nil
+        }
+        let action = actions[index]
+        let trackedUrl = actionUrls.indices.contains(index) && !actionUrls[index].isEmpty ? actionUrls[index] : nil
+        return action.deeplink ?? trackedUrl ?? action.redirectUrl
     }
 
     public init(userInfo: [AnyHashable: Any]) {
@@ -57,7 +67,12 @@ public struct SegmentifyPushPayload: Equatable {
         apiKey = SegmentifyPushPayload.string(userInfo["apiKey"])
         dataCenterUrl = SegmentifyPushPayload.string(userInfo["dataCenterUrl"])
         userId = SegmentifyPushPayload.string(userInfo["userId"])
-        actions = SegmentifyPushPayload.actions(from: userInfo["actions"])
+        let urls = SegmentifyPushPayload.list(from: userInfo["actionUrls"]).map { SegmentifyPushPayload.string($0) ?? "" }
+        let parsedActions = SegmentifyPushPayload.list(from: userInfo["actions"]).enumerated().compactMap { index, item in
+            SegmentifyPushPayload.action(from: item).map { ($0, urls.indices.contains(index) ? urls[index] : "") }
+        }
+        actions = parsedActions.map { $0.0 }
+        actionUrls = parsedActions.map { $0.1 }
         providerType = userInfo["gcm.message_id"] != nil ? .FIREBASE : .APNS
     }
 
@@ -87,7 +102,7 @@ public struct SegmentifyPushPayload: Equatable {
         return aps["alert"] as? [String: Any] ?? [:]
     }
 
-    private static func actions(from value: Any?) -> [SegmentifyPushAction] {
+    private static func list(from value: Any?) -> [Any] {
         var items: Any? = value
         if let json = value as? String {
             guard let data = json.data(using: .utf8),
@@ -96,20 +111,19 @@ public struct SegmentifyPushPayload: Equatable {
             }
             items = parsed
         }
-        guard let list = items as? [Any] else {
-            return []
+        return items as? [Any] ?? []
+    }
+
+    private static func action(from value: Any) -> SegmentifyPushAction? {
+        guard let item = value as? [String: Any], let action = string(item["action"]) else {
+            return nil
         }
-        return list.compactMap { item in
-            guard let item = item as? [String: Any], let action = string(item["action"]) else {
-                return nil
-            }
-            return SegmentifyPushAction(
-                action: action,
-                title: string(item["title"]) ?? "",
-                icon: string(item["icon"]),
-                redirectUrl: string(item["redirectUrl"]),
-                deeplink: string(item["deeplink"])
-            )
-        }
+        return SegmentifyPushAction(
+            action: action,
+            title: string(item["title"]) ?? "",
+            icon: string(item["icon"]),
+            redirectUrl: string(item["redirectUrl"]),
+            deeplink: string(item["deeplink"])
+        )
     }
 }

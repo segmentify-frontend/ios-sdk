@@ -12,12 +12,15 @@ public class NotificationModel: Codable {
     public var instanceId:String?
     public var interactionId:String?
     public var firebaseServerKey:String?
-    public var type:NotificationType?
+    public var type:NotificationType? {
+        didSet { supportsActions = SegmentifyManager.registrationSupportsActions(for: type) }
+    }
     public var topic:String?
     public var params:[String:String] = [String:String]()
     public var userId : String?
     public var providerType:ProviderType?
     public var sdkVersion:String?
+    public var supportsActions:Bool?
     private var email:String?
     private var userName:String?
     private var osVersion:String?

@@ -15,7 +15,7 @@ enum SDKVersion {
         return version.isEmpty ? "unknown" : version
     }()
 
-    private static var resourceBundle: Bundle {
+    static var resourceBundle: Bundle {
         #if SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE
         return Bundle.module
         #else

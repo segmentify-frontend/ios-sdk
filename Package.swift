@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Segmentify",
+    defaultLocalization: "en",
     platforms: [.iOS(.v13)],
     products: [
         .library(
